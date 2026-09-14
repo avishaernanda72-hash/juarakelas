@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Petualangan Jawara Kelas 5</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #4F46E5; /* Indigo 600 */
+            --secondary: #0ea5e9; /* Sky 500 */
+            --accent: #f59e0b; /* Amber 500 */
+            --correct: #10b981; /* Emerald 500 */
+            --wrong: #ef4444; /* Red 500 */
+            --bg-dark: #0f172a; /* Slate 900 */
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            overflow: hidden; /* Prevent all scrolling */
+            font-family: 'Poppins', sans-serif;
+            touch-action: none; /* Prevent pinch zoom on PID */
+        }
+
+        .title-font {
+            font-family: 'Baloo 2', cursive;
+        }
+
+        /* 16:9 Scaling Container */
+        #game-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1920px;
+            height: 1080px;
+            transform-origin: center center;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #000000 100%);
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ambient animated background elements */
+        .bg-rays {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-conic-gradient(from 0deg, transparent 0deg 15deg, rgba(79, 70, 229, 0.1) 15deg 30deg);
+            transform: translate(-50%, -50%);
+            animation: rotateRays 60s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes rotateRays {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            flex-direction: column;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.5s ease forwards; }
+        .slide-up { animation: slideUp 0.6s ease forwards; }
+        .pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .pulse-urgent { animation: pulseUrgent 1s infinite; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes pulseUrgent { 0% { transform: scale(1); color: white; } 50% { transform: scale(1.1); color: #ef4444; } 100% { transform: scale(1); color: white; } }
+
+        /* Buttons & Interactions */
+        .btn-3d {
+            transition: all 0.1s;
+            box-shadow: 0 8px 0px rgba(0,0,0,0.3);
+        }
+        .btn-3d:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0px rgba(0,0,0,0.3);
+        }
+        
+        .answer-btn {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 4px solid #3b82f6;
+            transition: all 0.2s ease;
+        }
+        .answer-btn:hover { border-color: #60a5fa; transform: scale(1.02); }
+        .answer-btn.selected {
+            background: linear-gradient(145deg, #d97706, #b45309);
+            border-color: #fcd34d;
+        }
+        .answer-btn.correct {
+            background: linear-gradient(145deg, #059669, #047857);
+            border-color: #34d399;
+            animation: pulseCorrect 1s infinite;
+        }
+        .answer-btn.wrong {
+            background: linear-gradient(145deg, #dc2626, #b91c1c);
+            border-color: #f87171;
+        }
+        .answer-btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        @keyframes pulseCorrect {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Score Ladder */
+        .ladder-item {
+            transition: all 0.3s ease;
+            opacity: 0.7;
+        }
+        .ladder-item.active {
+            background-color: var(--accent);
+            color: #000;
+            opacity: 1;
+            transform: scale(1.05);
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 0 15px var(--accent);
+        }
+        .ladder-item.passed {
+            color: var(--accent);
+            opacity: 0.9;
+        }
+        .ladder-milestone {
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+
+        /* Custom Modal */
+        .modal-overlay {
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(5px);
+        }
+
+        /* Top Bar */
+        .top-bar-btn {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div class="bg-rays"></div>
+
+    <!-- Top Navigation (Always visible except maybe splash) -->
+    <div class="absolute top-6 right-6 z-50 flex gap-4">
+        <button id="btn-sound" class="top-bar-btn text-white p-4 rounded-full text-2xl hover:bg-white hover:text-black transition z-50 w-16 h-16 flex items-center justify-center">
+            <i class="fas fa-volume-up"></i>
+        </button>
+        <button id="btn-fullscreen" class="top-bar-btn text-white p-4 rounded-full text-2xl hover:bg-white hover:text-black transition z-50 w-16 h-16 flex items-center justify-center">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+
+    <!-- SCREEN: SPLASH / MENU -->
+    <div id="screen-splash" class="screen active justify-center items-center">
+        <div class="text-center z-10 slide-up">
+            <div class="mb-8">
+                <i class="fas fa-graduation-cap text-8xl text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)] mb-6"></i>
+            </div>
+            <h1 class="title-font text-8xl font-bold text-white leading-tight drop-shadow-2xl tracking-wide">
+                PETUALANGAN<br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
+                    JAWARA KELAS 5
+                </span>
+            </h1>
+            <p class="text-3xl text-blue-200 mt-6 mb-12 font-semibold tracking-wider bg-black/30 p-4 rounded-full inline-block backdrop-blur-sm">
+                "Uji Pengetahuanmu, Naikkan Skormu, dan Jadilah JAWARA!"
+            </p>
+            
+            <div class="flex flex-col gap-6 items-center">
+                <button onclick="navTo('screen-input')" class="btn-3d bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white text-4xl font-bold py-6 px-16 rounded-full border-4 border-green-300 w-[600px] flex items-center justify-center gap-4">
+                    <i class="fas fa-play"></i> MULAI BERMAIN
+                </button>
+                <button onclick="navTo('screen-rules')" class="btn-3d bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white text-3xl font-bold py-5 px-12 rounded-full border-4 border-blue-400 w-[600px] flex items-center justify-center gap-4">
+                    <i class="fas fa-book-open"></i> CARA BERMAIN
+                </button>
+                <button onclick="showHighScores()" class="btn-3d bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white text-3xl font-bold py-5 px-12 rounded-full border-4 border-purple-400 w-[600px] flex items-center justify-center gap-4">
+                    <i class="fas fa-trophy"></i> REKOR TERBAIK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: INPUT NAME -->
+    <div id="screen-input" class="screen justify-center items-center">
+        <div class="bg-slate-800/80 backdrop-blur-md p-16 rounded-3xl border-4 border-blue-400 shadow-2xl z-10 w-[900px] text-center pop-in">
+            <h2 class="title-font text-6xl text-yellow-400 font-bold mb-10 drop-shadow-lg">SIAPA JAWARA HARI INI?</h2>
+            
+            <input type="text" id="player-name" placeholder="Masukkan nama kamu di sini..." class="w-full text-center text-4xl p-6 rounded-2xl mb-10 border-4 border-slate-600 bg-slate-900 text-white focus:outline-none focus:border-yellow-400 transition" autocomplete="off" maxlength="20">
+            
+            <p id="name-error" class="text-red-400 text-2xl mb-8 hidden font-bold">Yuk, masukkan namamu terlebih dahulu!</p>
+            
+            <div class="flex justify-center gap-6">
+                <button onclick="navTo('screen-splash')" class="btn-3d bg-slate-600 hover:bg-slate-500 text-white text-3xl font-bold py-6 px-12 rounded-2xl border-4 border-slate-400">
+                    <i class="fas fa-arrow-left"></i> KEMBALI
+                </button>
+                <button onclick="submitName()" class="btn-3d bg-yellow-500 hover:bg-yellow-400 text-black text-3xl font-bold py-6 px-16 rounded-2xl border-4 border-yellow-200">
+                    LANJUT <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: RULES -->
+    <div id="screen-rules" class="screen justify-center items-center">
+        <div class="bg-slate-800/90 backdrop-blur-md p-12 rounded-3xl border-4 border-blue-400 shadow-2xl z-10 w-[1200px] pop-in">
+            <h2 class="title-font text-6xl text-center text-yellow-400 font-bold mb-10 drop-shadow-lg">CARA BERMAIN</h2>
+            
+            <div class="text-3xl text-white space-y-6 mb-12 ml-10">
+                <p><i class="fas fa-check-circle text-green-400 mr-4"></i> Baca pertanyaan dengan teliti. Waktumu <strong>60 detik</strong> per soal.</p>
+                <p><i class="fas fa-check-circle text-green-400 mr-4"></i> Pilih salah satu jawaban A, B, C, atau D dengan menyentuhnya.</p>
+                <p><i class="fas fa-check-circle text-green-400 mr-4"></i> Jika sudah yakin, tekan tombol <strong>"🔒 KUNCI JAWABAN"</strong>.</p>
+                <p><i class="fas fa-check-circle text-green-400 mr-4"></i> Gunakan 3 bantuan (50:50, Tanya Teman, Petunjuk) jika kesulitan. Hanya bisa 1x.</p>
+                <p><i class="fas fa-check-circle text-green-400 mr-4"></i> Jawab sebanyak mungkin untuk mendapatkan skor tertinggi.</p>
+                <p class="text-center text-4xl text-yellow-300 font-bold mt-10">JADILAH JAWARA!</p>
+            </div>
+            
+            <div class="flex justify-center gap-6">
+                <button onclick="navTo('screen-splash')" class="btn-3d bg-slate-600 hover:bg-slate-500 text-white text-3xl font-bold py-5 px-12 rounded-2xl border-4 border-slate-400">
+                    <i class="fas fa-home"></i> MENU
+                </button>
+                <button onclick="startGame()" class="btn-3d bg-green-500 hover:bg-green-400 text-white text-3xl font-bold py-5 px-16 rounded-2xl border-4 border-green-200" id="btn-start-from-rules" style="display:none;">
+                    SIAP! MULAI <i class="fas fa-play"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: GAME -->
+    <div id="screen-game" class="screen bg-slate-900">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-6 bg-slate-800/80 border-b-4 border-blue-600 shadow-lg h-[120px] z-10">
+            <div class="flex items-center gap-6">
+                <div class="bg-blue-900 border-2 border-blue-400 rounded-full w-20 h-20 flex items-center justify-center">
+                    <i class="fas fa-user-graduate text-4xl text-yellow-400"></i>
+                </div>
+                <div>
+                    <div class="text-gray-300 text-2xl font-semibold">Pemain:</div>
+                    <div id="game-player-name" class="text-4xl text-white font-bold title-font tracking-wider uppercase">NAMA</div>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl text-yellow-400 font-bold title-font" id="game-question-number">PERTANYAAN 1 DARI 30</div>
+                <div class="text-xl text-gray-400" id="game-score-display">Skor Saat Ini: 0</div>
+            </div>
+            <div class="w-64 flex justify-end pr-20"> <!-- Spacer for symmetric header --> </div>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden z-10">
+            <!-- Left Panel: Question & Answers -->
+            <div class="flex-1 flex flex-col p-8 pl-12 pr-6">
+                
+                <!-- Timer -->
+                <div class="flex justify-center mb-6">
+                    <div id="timer-box" class="bg-slate-800 border-4 border-blue-500 rounded-full px-10 py-4 flex items-center gap-4 shadow-[0_0_20px_rgba(59,130,246,0.5)]">
+                        <i class="fas fa-stopwatch text-5xl text-blue-400"></i>
+                        <span id="timer-text" class="text-6xl font-bold text-white title-font w-24 text-center">60</span>
+                    </div>
+                </div>
+
+                <!-- Question Box -->
+                <div class="bg-slate-800 border-4 border-slate-600 rounded-3xl p-8 mb-8 shadow-2xl flex-1 flex items-center justify-center min-h-[250px]">
+                    <p id="question-text" class="text-2xl md:text-3xl text-white font-semibold text-center leading-relaxed w-full"></p>
+                </div>
+
+                <!-- Answers Grid -->
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <button id="ans-A" onclick="selectAnswer('A')" class="answer-btn rounded-2xl p-6 text-left flex items-center group">
+                        <span class="text-5xl font-bold text-yellow-400 mr-6 w-16 text-center group-hover:scale-110 transition">A</span>
+                        <span id="text-A" class="text-xl md:text-2xl text-white font-medium flex-1"></span>
+                    </button>
+                    <button id="ans-B" onclick="selectAnswer('B')" class="answer-btn rounded-2xl p-6 text-left flex items-center group">
+                        <span class="text-5xl font-bold text-yellow-400 mr-6 w-16 text-center group-hover:scale-110 transition">B</span>
+                        <span id="text-B" class="text-xl md:text-2xl text-white font-medium flex-1"></span>
+                    </button>
+                    <button id="ans-C" onclick="selectAnswer('C')" class="answer-btn rounded-2xl p-6 text-left flex items-center group">
+                        <span class="text-5xl font-bold text-yellow-400 mr-6 w-16 text-center group-hover:scale-110 transition">C</span>
+                        <span id="text-C" class="text-xl md:text-2xl text-white font-medium flex-1"></span>
+                    </button>
+                    <button id="ans-D" onclick="selectAnswer('D')" class="answer-btn rounded-2xl p-6 text-left flex items-center group">
+                        <span class="text-5xl font-bold text-yellow-400 mr-6 w-16 text-center group-hover:scale-110 transition">D</span>
+                        <span id="text-D" class="text-xl md:text-2xl text-white font-medium flex-1"></span>
+                    </button>
+                </div>
+
+                <!-- Bottom Controls (Lifelines & Lock) -->
+                <div class="flex justify-between items-center mt-auto pb-4">
+                    <div class="flex gap-4">
+                        <button id="btn-5050" onclick="useFiftyFifty()" class="btn-3d bg-purple-600 hover:bg-purple-500 border-4 border-purple-400 text-white rounded-2xl py-4 px-6 text-2xl font-bold flex flex-col items-center justify-center w-36 h-28">
+                            <span class="text-3xl mb-1">50:50</span>
+                            <span class="text-sm font-normal">Bantuan</span>
+                        </button>
+                        <button id="btn-friend" onclick="useAskFriend()" class="btn-3d bg-blue-600 hover:bg-blue-500 border-4 border-blue-400 text-white rounded-2xl py-4 px-6 text-2xl font-bold flex flex-col items-center justify-center w-36 h-28">
+                            <i class="fas fa-users text-3xl mb-2"></i>
+                            <span class="text-sm font-normal">Tanya Teman</span>
+                        </button>
+                        <button id="btn-hint" onclick="useHint()" class="btn-3d bg-teal-600 hover:bg-teal-500 border-4 border-teal-400 text-white rounded-2xl py-4 px-6 text-2xl font-bold flex flex-col items-center justify-center w-36 h-28">
+                            <i class="fas fa-lightbulb text-3xl mb-2"></i>
+                            <span class="text-sm font-normal">Petunjuk</span>
+                        </button>
+                    </div>
+                    
+                    <button id="btn-lock" onclick="lockAnswer()" class="btn-3d bg-slate-600 text-slate-400 border-4 border-slate-500 rounded-2xl py-6 px-12 text-4xl font-bold flex items-center gap-4 transition-colors cursor-not-allowed">
+                        <i class="fas fa-lock"></i> KUNCI JAWABAN
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Score Ladder -->
+            <div class="w-[450px] bg-slate-900 border-l-4 border-blue-800 p-6 flex flex-col">
+                <h3 class="text-2xl text-center text-yellow-400 font-bold mb-4 uppercase tracking-widest border-b-2 border-slate-700 pb-4">Tangga Hadiah</h3>
+                <div id="ladder-container" class="flex-1 flex flex-col-reverse justify-between text-2xl font-medium overflow-visible pl-4 relative">
+                    <!-- Ladder items will be generated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OVERLAYS (Feedback, Hints, Milestones) -->
+    <div id="modal-overlay" class="modal-overlay absolute inset-0 z-50 hidden flex-col justify-center items-center">
+        
+        <!-- Feedback Modal -->
+        <div id="modal-feedback" class="bg-slate-800 border-4 border-blue-500 rounded-3xl p-10 w-[900px] text-center shadow-[0_0_50px_rgba(0,0,0,0.8)] hidden pop-in">
+            <div id="feedback-icon" class="text-8xl mb-6"></div>
+            <h2 id="feedback-title" class="title-font text-6xl font-bold mb-4">BENAR!</h2>
+            <p id="feedback-player" class="text-3xl text-yellow-400 mb-6 font-semibold">Hebat, Budi!</p>
+            
+            <div id="feedback-explanation-box" class="bg-slate-900 p-6 rounded-2xl border-2 border-slate-600 mb-8 hidden">
+                <p class="text-2xl text-white mb-2 font-bold text-left">Penjelasan:</p>
+                <p id="feedback-explanation" class="text-2xl text-gray-300 text-left leading-relaxed"></p>
+            </div>
+            
+            <button onclick="nextQuestion()" class="btn-3d bg-blue-600 hover:bg-blue-500 text-white border-4 border-blue-400 text-3xl font-bold py-5 px-12 rounded-2xl">
+                LANJUT <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+
+        <!-- Info/Hint Modal -->
+        <div id="modal-info" class="bg-slate-800 border-4 border-blue-500 rounded-3xl p-10 w-[800px] text-center shadow-2xl hidden pop-in">
+            <h2 id="info-title" class="title-font text-5xl font-bold text-yellow-400 mb-6">PETUNJUK</h2>
+            <div class="bg-slate-900 p-8 rounded-2xl border-2 border-slate-600 mb-8">
+                <p id="info-content" class="text-3xl text-white leading-relaxed"></p>
+            </div>
+            <button onclick="closeModal()" class="btn-3d bg-blue-600 hover:bg-blue-500 text-white border-4 border-blue-400 text-3xl font-bold py-4 px-12 rounded-2xl">
+                TUTUP
+            </button>
+        </div>
+
+        <!-- Milestone Modal -->
+        <div id="modal-milestone" class="bg-gradient-to-br from-yellow-600 to-yellow-900 border-4 border-yellow-300 rounded-3xl p-12 w-[900px] text-center shadow-[0_0_50px_rgba(253,224,71,0.5)] hidden pop-in">
+            <i class="fas fa-star text-yellow-300 text-8xl mb-6 drop-shadow-lg"></i>
+            <h2 class="title-font text-6xl font-bold text-white mb-6 drop-shadow-md">LEVEL AMAN TERCAPAI!</h2>
+            <p id="milestone-text" class="text-4xl text-yellow-100 mb-10 font-medium">Hebat! Kamu sudah mencapai Level Aman 10!</p>
+            <button onclick="closeMilestone()" class="btn-3d bg-white hover:bg-gray-200 text-yellow-900 border-4 border-yellow-200 text-3xl font-bold py-5 px-12 rounded-2xl">
+                LANJUTKAN PERJUANGAN <i class="fas fa-fist-raised ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- SCREEN: FINAL RESULT -->
+    <div id="screen-result" class="screen justify-center items-center bg-slate-900">
+        <div class="bg-slate-800/90 border-4 border-yellow-500 rounded-3xl p-12 w-[1200px] flex flex-col items-center shadow-[0_0_50px_rgba(234,179,8,0.3)] z-10 slide-up">
+            <h1 class="title-font text-7xl font-bold text-yellow-400 mb-4 tracking-wide drop-shadow-lg">🏆 PERMAINAN SELESAI! 🏆</h1>
+            <h2 id="result-message" class="text-5xl text-white font-bold mb-10 text-center">SELAMAT, KAMU JAWARA!</h2>
+            
+            <div class="flex w-full gap-8 mb-12">
+                <!-- Title Badge -->
+                <div class="flex-1 bg-gradient-to-br from-slate-700 to-slate-900 p-8 rounded-3xl border-4 border-slate-600 flex flex-col items-center justify-center">
+                    <div class="text-gray-400 text-2xl font-semibold mb-4 uppercase">Gelar Kamu</div>
+                    <div id="result-title-icon" class="text-8xl mb-4 text-yellow-400"></div>
+                    <div id="result-title-text" class="text-4xl font-bold text-white title-font text-center">JAWARA UTAMA</div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="flex-[2] bg-slate-900 p-8 rounded-3xl border-4 border-slate-700 grid grid-cols-2 gap-6">
+                    <div class="col-span-2 text-center border-b-2 border-slate-700 pb-4 mb-2">
+                        <div class="text-gray-400 text-2xl font-semibold">Nama Pemain</div>
+                        <div id="result-name" class="text-5xl font-bold text-yellow-400 title-font">BUDI</div>
+                    </div>
+                    
+                    <div class="text-center bg-slate-800 p-4 rounded-xl border border-slate-600">
+                        <div class="text-gray-400 text-xl font-medium">Jawaban Benar</div>
+                        <div id="result-correct" class="text-4xl font-bold text-green-400">25</div>
+                    </div>
+                    <div class="text-center bg-slate-800 p-4 rounded-xl border border-slate-600">
+                        <div class="text-gray-400 text-xl font-medium">Jawaban Salah</div>
+                        <div id="result-wrong" class="text-4xl font-bold text-red-400">5</div>
+                    </div>
+                    <div class="text-center bg-slate-800 p-4 rounded-xl border border-slate-600">
+                        <div class="text-gray-400 text-xl font-medium">Akurasi</div>
+                        <div id="result-accuracy" class="text-4xl font-bold text-blue-400">83%</div>
+                    </div>
+                    <div class="text-center bg-slate-800 p-4 rounded-xl border border-slate-600">
+                        <div class="text-gray-400 text-xl font-medium">Skor Akhir</div>
+                        <div id="result-score" class="text-4xl font-bold text-yellow-500">500.000</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-8">
+                <button onclick="navTo('screen-splash')" class="btn-3d bg-slate-600 hover:bg-slate-500 text-white border-4 border-slate-400 text-3xl font-bold py-6 px-12 rounded-2xl flex items-center gap-3">
+                    <i class="fas fa-home"></i> MENU UTAMA
+                </button>
+                <button onclick="resetGame(true)" class="btn-3d bg-green-600 hover:bg-green-500 text-white border-4 border-green-400 text-3xl font-bold py-6 px-12 rounded-2xl flex items-center gap-3">
+                    <i class="fas fa-redo"></i> MAIN LAGI
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: HIGH SCORES -->
+    <div id="screen-highscores" class="screen justify-center items-center bg-slate-900">
+        <div class="bg-slate-800/95 border-4 border-purple-500 rounded-3xl p-10 w-[900px] flex flex-col items-center shadow-2xl z-10 pop-in">
+            <i class="fas fa-trophy text-7xl text-yellow-400 mb-4"></i>
+            <h2 class="title-font text-6xl font-bold text-white mb-8 tracking-wide">REKOR TERBAIK</h2>
+            
+            <div class="w-full bg-slate-900 rounded-2xl border-2 border-slate-600 p-6 mb-8 h-[400px] overflow-y-auto">
+                <table class="w-full text-left text-2xl text-white">
+                    <thead>
+                        <tr class="border-b-2 border-slate-700 text-gray-400">
+                            <th class="pb-4 pt-2 pl-4">Peringkat</th>
+                            <th class="pb-4 pt-2">Nama</th>
+                            <th class="pb-4 pt-2">Skor</th>
+                            <th class="pb-4 pt-2 text-right pr-4">Benar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="highscore-list">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+                <div id="no-scores-msg" class="text-center text-gray-500 text-2xl mt-10 hidden">Belum ada rekor tercatat. Jadilah yang pertama!</div>
+            </div>
+            
+            <button onclick="navTo('screen-splash')" class="btn-3d bg-purple-600 hover:bg-purple-500 text-white border-4 border-purple-400 text-3xl font-bold py-5 px-16 rounded-2xl">
+                KEMBALI KE MENU
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- Responsive Scaling Logic for PID (16:9 1080p fit) ---
+    const wrapper = document.getElementById('game-wrapper');
+    function resizeApp() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const windowRatio = windowWidth / windowHeight;
+        const appRatio = 1920 / 1080;
+        
+        let scale;
+        if (windowRatio < appRatio) {
+            scale = windowWidth / 1920;
+        } else {
+            scale = windowHeight / 1080;
+        }
+        
+        // Prevent scaling up too much if on super ultrawide, but allow exact fit
+        wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeApp);
+    resizeApp();
+
+    // --- Audio System (Web Audio API Synthesizer) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let isSoundOn = true;
+
+    function playTone(frequency, type, duration, vol=0.1) {
+        if (!isSoundOn) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        
+        gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + duration);
+    }
+
+    const sounds = {
+        click: () => playTone(600, 'sine', 0.1, 0.2),
+        lock: () => { playTone(400, 'square', 0.15, 0.2); setTimeout(() => playTone(300, 'square', 0.2, 0.2), 150); },
+        correct: () => {
+            // Suara BENAR yang MENGGELEGAR (Triumphant fanfare + Booming bass drop)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // 1. Fanfare Chords (Gaya Terompet Kemenangan)
+            const playChord = (freqs, time, dur, vol) => {
+                freqs.forEach(f => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'square';
+                    o.frequency.value = f;
+                    g.gain.setValueAtTime(vol, audioCtx.currentTime + time);
+                    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + time + dur);
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.start(audioCtx.currentTime + time);
+                    o.stop(audioCtx.currentTime + time + dur);
+                });
+            };
+            
+            playChord([523.25, 659.25, 783.99], 0, 0.3, 0.15); // C Major
+            playChord([523.25, 659.25, 783.99], 0.3, 0.3, 0.15); // C Major
+            playChord([698.46, 880.00, 1046.50], 0.6, 0.4, 0.2); // F Major
+            playChord([783.99, 987.77, 1174.66], 1.0, 1.2, 0.25); // G Major Impact
+
+            // 2. Efek "Menggelegar" (Ledakan / Dentuman Bass)
+            const boomOsc = audioCtx.createOscillator();
+            const boomGain = audioCtx.createGain();
+            boomOsc.type = 'triangle';
+            boomOsc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            boomOsc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 1.0);
+            boomGain.gain.setValueAtTime(1.0, audioCtx.currentTime); // LOUD!
+            boomGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+            boomOsc.connect(boomGain); boomGain.connect(audioCtx.destination);
+            boomOsc.start(); boomOsc.stop(audioCtx.currentTime + 1.0);
+            
+            // Dentuman kedua mengikuti chord terakhir
+            const boomOsc2 = audioCtx.createOscillator();
+            const boomGain2 = audioCtx.createGain();
+            boomOsc2.type = 'sawtooth';
+            boomOsc2.frequency.setValueAtTime(150, audioCtx.currentTime + 1.0);
+            boomOsc2.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 2.5);
+            boomGain2.gain.setValueAtTime(0.8, audioCtx.currentTime + 1.0); // LOUD!
+            boomGain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2.5);
+            boomOsc2.connect(boomGain2); boomGain2.connect(audioCtx.destination);
+            boomOsc2.start(audioCtx.currentTime + 1.0); boomOsc2.stop(audioCtx.currentTime + 2.5);
+        },
+        wrong: () => {
+            playTone(200, 'sawtooth', 0.3, 0.4);
+            setTimeout(() => playTone(150, 'sawtooth', 0.5, 0.4), 250);
+        },
+        tick: () => playTone(800, 'sine', 0.05, 0.05),
+        urgentTick: () => playTone(900, 'square', 0.1, 0.1),
+        levelUp: () => {
+            let t = 0;
+            [440, 554, 659, 880].forEach(freq => {
+                setTimeout(() => playTone(freq, 'square', 0.2, 0.2), t);
+                t += 100;
+            });
+        }
+    };
+
+    document.getElementById('btn-sound').addEventListener('click', () => {
+        isSoundOn = !isSoundOn;
+        document.getElementById('btn-sound').innerHTML = isSoundOn ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute text-red-400"></i>';
+        if(isSoundOn) audioCtx.resume();
+    });
+
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                alert(`Gagal memasuki fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    // 30 Real Educational Questions for 5th Grade (Tematik)
+    const questions = [
+        {
+            number: 1,
+            question: "Sekolah A mengadakan program membawa botol minum sendiri. Setelah tiga bulan, jumlah sampah botol plastik berkurang dari rata-rata 200 botol menjadi 140 botol setiap minggu. Kesimpulan yang paling tepat adalah ...",
+            options: { A: "Program tersebut pasti berhasil di semua sekolah.", B: "Program tersebut menyebabkan sampah botol plastik berkurang di Sekolah A.", C: "Semua siswa Sekolah A sudah tidak menggunakan plastik.", D: "Sekolah A tidak lagi menghasilkan sampah plastik." },
+            answer: "B",
+            explanation: "Data menunjukkan penurunan yang spesifik di Sekolah A, sehingga dapat disimpulkan program tersebut berhasil mengurangi sampah di sana."
+        },
+        {
+            number: 2,
+            question: "Rani menemukan dua artikel tentang manfaat membaca. Artikel 1 mencantumkan nama penulis, tanggal penerbitan, dan sumber penelitian. Artikel 2 memiliki judul menarik, tetapi tidak mencantumkan penulis maupun sumber informasi. Jika Rani ingin membuat tugas sekolah, tindakan yang paling tepat adalah ...",
+            options: { A: "Menggunakan Artikel 2 karena judulnya lebih menarik.", B: "Menggunakan keduanya tanpa memeriksa sumber.", C: "Memilih Artikel 1 karena informasinya lebih mudah diverifikasi.", D: "Memilih artikel yang paling pendek." },
+            answer: "C",
+            explanation: "Untuk tugas sekolah, informasi yang jelas sumber dan penulisnya (Artikel 1) lebih dapat dipertanggungjawabkan."
+        },
+        {
+            number: 3,
+            question: "“Setelah membaca buku selama 30 menit setiap hari, nilai Budi meningkat. Jadi, semua siswa yang membaca 30 menit setiap hari pasti memperoleh nilai tinggi.” Kelemahan kesimpulan tersebut adalah ...",
+            options: { A: "Tidak ada hubungan antara membaca dan belajar.", B: "Kesimpulan terlalu luas berdasarkan pengalaman satu siswa.", C: "Budi seharusnya tidak membaca buku.", D: "Nilai siswa tidak dapat mengalami peningkatan." },
+            answer: "B",
+            explanation: "Kesimpulan yang ditarik dari satu contoh (Budi) tidak bisa secara otomatis diterapkan (digeneralisasi) kepada semua siswa secara pasti."
+        },
+        {
+            number: 4,
+            question: "Pesan di grup kelas berbunyi, “Besok semua siswa pulang lebih awal karena ada rapat guru.” Pesan tersebut tidak mencantumkan sumber dan belum ada pengumuman dari sekolah. Tindakan paling tepat adalah ...",
+            options: { A: "Segera menyebarkan pesan kepada kelas lain.", B: "Menganggap pesan benar karena dikirim oleh teman.", C: "Memeriksa informasi melalui pengumuman resmi sekolah.", D: "Tidak masuk sekolah pada hari berikutnya." },
+            answer: "C",
+            explanation: "Setiap informasi yang tidak jelas sumbernya harus diverifikasi (diperiksa) terlebih dahulu melalui saluran resmi untuk menghindari hoax."
+        },
+        {
+            number: 5,
+            question: "Perhatikan dua pernyataan dalam iklan buku: (1) Harga buku Rp35.000,00. (2) Buku tersebut merupakan buku terbaik dan pasti disukai semua anak. Pernyataan yang dapat dianggap sebagai fakta adalah ...",
+            options: { A: "Pernyataan 1 saja.", B: "Pernyataan 2 saja.", C: "Kedua pernyataan.", D: "Tidak ada pernyataan." },
+            answer: "A",
+            explanation: "Pernyataan 1 adalah fakta (bisa dibuktikan angka/nominalnya), sedangkan pernyataan 2 adalah pendapat/opini subjektif pembuat iklan."
+        },
+        {
+            number: 6,
+            question: "Dina membawa Rp150.000,00. Ia membeli 2 buku seharga Rp32.500,00 per buku dan 3 pensil seharga Rp7.500,00 per pensil. Toko memberikan diskon Rp10.000,00 dari total pembelian. Sisa uang Dina adalah ...",
+            options: { A: "Rp62.500,00", B: "Rp67.500,00", C: "Rp72.500,00", D: "Rp77.500,00" },
+            answer: "C",
+            explanation: "Total belanja: (2 x 32.500) + (3 x 7.500) = 65.000 + 22.500 = 87.500. Dikurangi diskon 10.000 menjadi 77.500. Sisa uang = 150.000 - 77.500 = 72.500."
+        },
+        {
+            number: 7,
+            question: "Sebuah tas seharga Rp320.000,00 mendapat diskon 20%. Setelah itu, pembeli membayar biaya tambahan Rp15.000,00. Harga akhir adalah ...",
+            options: { A: "Rp241.000,00", B: "Rp251.000,00", C: "Rp256.000,00", D: "Rp271.000,00" },
+            answer: "D",
+            explanation: "Diskon: 20% x 320.000 = 64.000. Harga tas setelah diskon: 256.000. Ditambah biaya tambahan 15.000 = 271.000."
+        },
+        {
+            number: 8,
+            question: "Andi memiliki Rp100.000,00. Ia harus membeli buku Rp35.000,00 dan alat tulis Rp18.000,00. Ia juga ingin membeli mainan Rp55.000,00. Keputusan paling bijaksana adalah ...",
+            options: { A: "Membeli semuanya dengan berutang.", B: "Membeli kebutuhan sekolah dan menyimpan sisanya.", C: "Membeli mainan terlebih dahulu.", D: "Tidak membeli buku agar dapat membeli mainan." },
+            answer: "B",
+            explanation: "Memprioritaskan kebutuhan utama (buku dan alat tulis) lalu menabung sisa uangnya adalah langkah pengelolaan keuangan yang bijaksana."
+        },
+        {
+            number: 9,
+            question: "Sebuah toko memberikan dua pilihan harga sepatu: Pilihan A Rp240.000,00 dengan diskon 25%; Pilihan B Rp190.000,00 tanpa diskon. Pernyataan yang tepat adalah ...",
+            options: { A: "Pilihan A lebih murah karena harga akhirnya Rp180.000,00.", B: "Pilihan B lebih murah karena harga akhirnya Rp190.000,00.", C: "Kedua pilihan memiliki harga yang sama.", D: "Pilihan A pasti lebih berkualitas." },
+            answer: "A",
+            explanation: "Pilihan A: Diskon 25% dari 240.000 adalah 60.000, sehingga harganya menjadi 180.000. Ini lebih murah dari Pilihan B (190.000)."
+        },
+        {
+            number: 10,
+            question: "Kelas V mengumpulkan Rp480.000,00 untuk kegiatan sosial. Paket makanan seharga Rp18.000,00 per paket. Jumlah paket terbanyak dan sisa uang adalah ...",
+            options: { A: "25 paket dan Rp30.000,00", B: "26 paket dan Rp12.000,00", C: "27 paket dan Rp6.000,00", D: "28 paket dan Rp4.000,00" },
+            answer: "B",
+            explanation: "480.000 dibagi 18.000 = 26 paket (dengan total harga 468.000). Sisa uang = 480.000 - 468.000 = 12.000."
+        },
+        {
+            number: 11,
+            question: "Dua tanaman yang jenis dan ukurannya sama diletakkan di tempat berbeda. Tanaman A mendapat cahaya matahari cukup dan disiram setiap hari. Tanaman B diletakkan di tempat gelap dan disiram dengan jumlah air yang sama. Setelah dua minggu, tanaman A tumbuh lebih baik. Kesimpulan paling tepat adalah ...",
+            options: { A: "Tanaman hanya membutuhkan air.", B: "Cahaya merupakan salah satu faktor yang memengaruhi pertumbuhan tanaman.", C: "Semua tanaman harus diletakkan di tempat gelap.", D: "Air tidak diperlukan oleh tanaman." },
+            answer: "B",
+            explanation: "Karena kedua tanaman mendapat asupan air yang sama namun terpapar cahaya yang berbeda, ini membuktikan cahaya memengaruhi pertumbuhannya."
+        },
+        {
+            number: 12,
+            question: "Siswa ingin mengetahui apakah suhu lingkungan memengaruhi kecepatan mencairnya es. Percobaan yang paling adil adalah ...",
+            options: { A: "Es besar di tempat panas dan es kecil di tempat teduh.", B: "Es dengan ukuran sama diletakkan di tempat berbeda suhu.", C: "Es dengan ukuran berbeda diletakkan di tempat yang sama.", D: "Es diberi warna berbeda lalu diletakkan di tempat berbeda." },
+            answer: "B",
+            explanation: "Untuk menguji pengaruh suhu, semua variabel lain (seperti ukuran es) harus dibuat persis sama, dan hanya lokasi suhunya yang dibedakan."
+        },
+        {
+            number: 13,
+            question: "Siti ingin membuktikan bahwa air garam lebih sulit membeku daripada air biasa. Agar percobaannya dapat dipercaya, Siti sebaiknya ...",
+            options: { A: "Menggunakan jumlah air dan wadah yang sama, tetapi membedakan jenis air.", B: "Menggunakan jumlah air yang berbeda.", C: "Menggunakan wadah berbeda ukuran.", D: "Mengubah jumlah garam selama percobaan." },
+            answer: "A",
+            explanation: "Percobaan ilmiah yang valid harus mengendalikan variabel lain (jumlah air dan wadah) agar perbedaannya murni terlihat karena adanya garam."
+        },
+        {
+            number: 14,
+            question: "Gelas berisi es diletakkan di atas meja. Beberapa saat kemudian, bagian luar gelas menjadi basah. Pernyataan yang paling tepat adalah ...",
+            options: { A: "Air dari es selalu dapat menembus gelas.", B: "Uap air di udara mengalami pengembunan pada permukaan gelas yang dingin.", C: "Gelas menghasilkan air ketika terkena udara.", D: "Es mengeluarkan air melalui bagian luar gelas." },
+            answer: "B",
+            explanation: "Titik-titik air di luar gelas adalah hasil kondensasi (pengembunan), di mana uap air di udara sekitar menyentuh permukaan gelas yang dingin lalu berubah menjadi air."
+        },
+        {
+            number: 15,
+            question: "Kelompok A dan B melakukan percobaan. Hasil kedua kelompok berbeda. Sikap ilmiah yang paling tepat adalah ...",
+            options: { A: "Menganggap kelompok lain pasti salah.", B: "Memilih hasil yang sesuai keinginan sendiri.", C: "Membandingkan prosedur dan data kedua kelompok secara objektif.", D: "Mengabaikan hasil kelompok lain." },
+            answer: "C",
+            explanation: "Dalam sains, perbedaan hasil tidak diselesaikan dengan perdebatan, melainkan dengan membandingkan prosedur dan keakuratan data secara objektif."
+        },
+        {
+            number: 16,
+            question: "Dalam diskusi kelas, pendapat Riko berbeda dengan sebagian besar teman. Sikap yang menunjukkan penghargaan terhadap perbedaan adalah ...",
+            options: { A: "Meminta Riko diam.", B: "Menertawakan pendapat Riko.", C: "Mendengarkan alasan Riko dan menyampaikan pendapat dengan santun.", D: "Memaksa Riko mengikuti pendapat mayoritas." },
+            answer: "C",
+            explanation: "Toleransi berpendapat ditunjukkan dengan kemauan mendengarkan alasan orang lain dan menanggapi dengan menggunakan kata-kata yang santun."
+        },
+        {
+            number: 17,
+            question: "Dalam kerja kelompok, satu anggota belum menyelesaikan tugas karena kesulitan memahami pekerjaannya. Tindakan yang mencerminkan gotong royong adalah ...",
+            options: { A: "Mengeluarkannya dari kelompok.", B: "Menyalahkannya karena lambat.", C: "Membantu menjelaskan tugas tanpa mengambil seluruh pekerjaannya.", D: "Membiarkannya menyelesaikan sendiri." },
+            answer: "C",
+            explanation: "Bergotong royong berarti saling membantu. Menjelaskan cara kerjanya menunjukkan dukungan, tanpa memanjakan atau mengambil alih tugas pribadinya."
+        },
+        {
+            number: 18,
+            question: "Di kelas terdapat siswa dari berbagai daerah. Beberapa siswa menggunakan bahasa daerah. Sikap yang paling tepat adalah ...",
+            options: { A: "Melarang semua penggunaan bahasa daerah.", B: "Menertawakan bahasa daerah yang berbeda.", C: "Menghargai bahasa daerah dan menggunakan bahasa yang dipahami bersama saat pembelajaran.", D: "Tidak berbicara dengan teman yang berbeda daerah." },
+            answer: "C",
+            explanation: "Sikap terbaik adalah melestarikan keberagaman bahasa daerah sekaligus menggunakan Bahasa Indonesia sebagai jembatan persatuan."
+        },
+        {
+            number: 19,
+            question: "Seorang teman melakukan kesalahan saat presentasi. Beberapa siswa menertawakannya. Tindakan paling tepat adalah ...",
+            options: { A: "Ikut tertawa.", B: "Menegur dengan kasar.", C: "Menghargai teman dan memberikan dukungan agar ia dapat memperbaiki kesalahannya.", D: "Merekam kesalahannya untuk dibagikan ke grup." },
+            answer: "C",
+            explanation: "Memberikan dukungan moral saat teman melakukan kesalahan adalah wujud dari karakter positif, empati, dan penghargaan terhadap teman."
+        },
+        {
+            number: 20,
+            question: "Sekolah ingin meningkatkan kebiasaan membaca siswa. Sebagian besar siswa lebih tertarik bermain saat waktu luang. Program yang paling memungkinkan adalah ...",
+            options: { A: "Memberikan hukuman kepada siswa yang tidak membaca.", B: "Menambah tugas membaca tanpa menyediakan buku menarik.", C: "Membuat pojok baca dengan buku beragam dan kegiatan membaca yang menyenangkan.", D: "Melarang siswa bermain selama berada di sekolah." },
+            answer: "C",
+            explanation: "Menciptakan lingkungan yang kondusif (menyenangkan dan beragam) merupakan solusi terampuh agar siswa secara sukarela tertarik untuk membaca."
+        },
+        {
+            number: 21,
+            question: "Sebuah bak air berisi 360 liter. Sebanyak 40% digunakan untuk menyiram tanaman. Sisa air dibagi rata ke 6 wadah. Banyak air dalam setiap wadah adalah ...",
+            options: { A: "30 liter", B: "36 liter", C: "40 liter", D: "60 liter" },
+            answer: "B",
+            explanation: "Air yang digunakan = 40%, berarti sisa 60%. 60% dari 360 = 216 liter. Jika 216 liter dibagi ke 6 wadah, tiap wadah berisi = 216 ÷ 6 = 36 liter."
+        },
+        {
+            number: 22,
+            question: "Jumlah buku yang dibaca lima siswa dalam satu bulan: Andi 4, Beni 7, Citra 5, Dinda 12, Eko 6. Jika guru ingin mengetahui jumlah bacaan yang paling mewakili kebiasaan sebagian besar siswa, ukuran yang paling tepat adalah ...",
+            options: { A: "Nilai maksimum", B: "Nilai minimum", C: "Median", D: "Selisih terbesar" },
+            answer: "C",
+            explanation: "Terdapat nilai yang sangat ekstrem tinggi (Dinda 12). Median (nilai tengah) paling tepat dipakai untuk mewakili mayoritas siswa agar tidak terpengaruh oleh pencapaian 1 anak saja."
+        },
+        {
+            number: 23,
+            question: "Nilai lima siswa adalah 70, 75, 80, 85, dan 100. Jika nilai 100 ternyata merupakan kesalahan pencatatan dan dihapus, bagaimana pengaruhnya terhadap rata-rata?",
+            options: { A: "Rata-rata meningkat.", B: "Rata-rata menurun.", C: "Rata-rata tetap sama.", D: "Tidak dapat dihitung." },
+            answer: "B",
+            explanation: "Menghapus nilai tertinggi dari sekumpulan data pasti akan menyebabkan nilai rata-rata keseluruhan (mean) menurun/anjlok."
+        },
+        {
+            number: 24,
+            question: "Sebuah taman berbentuk persegi panjang berukuran 24 m × 15 m. Di tengah taman terdapat kolam berbentuk persegi dengan sisi 8 m. Luas taman yang tidak digunakan untuk kolam adalah ...",
+            options: { A: "296 m²", B: "304 m²", C: "320 m²", D: "360 m²" },
+            answer: "A",
+            explanation: "Luas seluruh taman = 24 x 15 = 360 m². Luas kolam = 8 x 8 = 64 m². Sisa luas tanah = 360 - 64 = 296 m²."
+        },
+        {
+            number: 25,
+            question: "Perjalanan dimulai pukul 07.15. Perjalanan pertama 1 jam 45 menit, istirahat 30 menit, kemudian perjalanan kedua 2 jam 20 menit. Pukul berapa perjalanan selesai?",
+            options: { A: "11.20", B: "11.40", C: "11.50", D: "12.00" },
+            answer: "C",
+            explanation: "Total waktu = 1 jam 45 m + 30 m + 2 jam 20 m = 4 jam 35 m. Pukul 07.15 ditambah waktu tempuh 4 jam 35 menit menjadi pukul 11.50."
+        },
+        {
+            number: 26,
+            question: "Kelas V mengadakan program membawa bekal. Dalam satu minggu, sampah plastik berkurang dari 150 kg menjadi 105 kg. Pernyataan yang paling tepat adalah ...",
+            options: { A: "Sampah berkurang 30 kg.", B: "Sampah berkurang 35 kg.", C: "Sampah berkurang 45 kg.", D: "Sampah berkurang 50 kg." },
+            answer: "C",
+            explanation: "Jumlah penurunan sampah = 150 kg - 105 kg = 45 kg."
+        },
+        {
+            number: 27,
+            question: "Seorang siswa mengatakan, “Program membawa bekal pasti berhasil karena jumlah sampah berkurang.” Agar kesimpulan lebih kuat, data tambahan yang paling berguna adalah ...",
+            options: { A: "Warna tempat sampah.", B: "Data jumlah sampah sebelum dan sesudah program dalam beberapa minggu.", C: "Nama siswa yang membawa bekal.", D: "Jenis makanan yang paling disukai siswa." },
+            answer: "B",
+            explanation: "Data statistik tren yang dikumpulkan sebelum dan sesudah program berjalan dalam rentang waktu yang stabil akan memperkuat bukti keberhasilan program tersebut."
+        },
+        {
+            number: 28,
+            question: "Sekolah menghasilkan banyak sampah plastik dari botol minuman sekali pakai. Sebagian besar berasal dari siswa yang membeli minuman kemasan setiap hari. Program paling tepat adalah ...",
+            options: { A: "Menambah tempat sampah tanpa mengubah kebiasaan siswa.", B: "Mengadakan lomba kebersihan satu kali.", C: "Membiasakan siswa membawa botol minum sendiri dan memantau pengurangan sampah secara berkala.", D: "Melarang siswa membawa minuman ke sekolah." },
+            answer: "C",
+            explanation: "Membiasakan membawa tempat minum sendiri yang dapat dipakai berulang adalah solusi edukatif paling tepat untuk menanggulangi penumpukan botol plastik."
+        },
+        {
+            number: 29,
+            question: "Dari 40 siswa, 24 menyukai membaca, 10 menyukai menggambar, dan 6 menyukai keduanya. Jika sekolah ingin membuat kegiatan yang menarik siswa dengan minat berbeda, program paling tepat adalah ...",
+            options: { A: "Hanya menyediakan kegiatan membaca.", B: "Hanya menyediakan kegiatan menggambar.", C: "Menggabungkan membaca dan menggambar, misalnya membuat komik berdasarkan cerita yang dibaca.", D: "Menghapus kegiatan yang peminatnya lebih sedikit." },
+            answer: "C",
+            explanation: "Menyediakan wadah untuk berkreasi yang mencakup bacaan dan gambaran (misal membuat komik) dapat memfasilitasi kebutuhan seluruh anak secara bersamaan."
+        },
+        {
+            number: 30,
+            question: "Sekolah memiliki dana Rp1.200.000,00. Pilihan A: 30 buku × Rp30.000,00. Pilihan B: 20 buku × Rp35.000,00 + pojok baca Rp300.000,00. Pilihan C: 25 buku × Rp28.000,00 + kegiatan literasi Rp450.000,00. Jika sekolah ingin menambah bahan bacaan sekaligus membuat kegiatan yang mendukung kebiasaan membaca, pilihan yang paling sesuai adalah ...",
+            options: { A: "Pilihan A", B: "Pilihan B", C: "Pilihan C", D: "Semua pilihan sama." },
+            answer: "C",
+            explanation: "Pilihan C menelan biaya total Rp1.150.000 (masih dalam anggaran), dan menawarkan buku yang cukup banyak sekaligus alokasi dana pendukung kegiatan literasi yang paling memadai."
+        }
+    ];
+
+    const prizeLadder = [
+        "1.000", "2.000", "5.000", "10.000", "15.000", "20.000", "25.000", "30.000", "40.000", "50.000",
+        "60.000", "70.000", "80.000", "90.000", "100.000", "125.000", "150.000", "175.000", "200.000", "250.000",
+        "300.000", "350.000", "400.000", "450.000", "500.000", "600.000", "700.000", "800.000", "900.000", "1.000.000"
+    ];
+
+    const safeLevels = [4, 9, 14, 19, 24, 29]; // Index array (soal 5, 10, 15, 20, 25, 30)
+
+    let gameState = {
+        playerName: "",
+        currentIndex: 0,
+        scoreIndex: -1, // -1 means 0 score
+        correctCount: 0,
+        wrongCount: 0,
+        timer: 60,
+        timerInterval: null,
+        selectedAnswer: null,
+        isLocked: false,
+        lifelines: { fiftyFifty: true, askFriend: true, hint: true }
+    };
+
+    // --- Navigation & Core UI ---
+    function navTo(screenId) {
+        sounds.click();
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function submitName() {
+        const nameInput = document.getElementById('player-name').value.trim();
+        if (nameInput.length < 1) {
+            document.getElementById('name-error').classList.remove('hidden');
+            sounds.wrong();
+            return;
+        }
+        document.getElementById('name-error').classList.add('hidden');
+        gameState.playerName = nameInput.substring(0, 15);
+        document.getElementById('btn-start-from-rules').style.display = 'flex';
+        navTo('screen-rules');
+    }
+
+    function resetGame(playAgain = false) {
+        if(playAgain) sounds.click();
+        gameState = {
+            playerName: playAgain ? gameState.playerName : "",
+            currentIndex: 0,
+            scoreIndex: -1,
+            correctCount: 0,
+            wrongCount: 0,
+            timer: 60,
+            timerInterval: null,
+            selectedAnswer: null,
+            isLocked: false,
+            lifelines: { fiftyFifty: true, askFriend: true, hint: true }
+        };
+        
+        // Reset Lifeline UI
+        ['btn-5050', 'btn-friend', 'btn-hint'].forEach(id => {
+            let btn = document.getElementById(id);
+            btn.classList.remove('opacity-30', 'cursor-not-allowed', 'bg-gray-700');
+            btn.disabled = false;
+        });
+
+        if(playAgain) {
+            startGame();
+        } else {
+            document.getElementById('player-name').value = "";
+            document.getElementById('btn-start-from-rules').style.display = 'none';
+        }
+    }
+
+    function startGame() {
+        sounds.click();
+        document.getElementById('game-player-name').innerText = gameState.playerName;
+        buildLadder();
+        navTo('screen-game');
+        loadQuestion();
+    }
+
+    function buildLadder() {
+        const container = document.getElementById('ladder-container');
+        container.innerHTML = '';
+        for (let i = 0; i < prizeLadder.length; i++) {
+            const div = document.createElement('div');
+            div.className = 'ladder-item py-1 flex items-center justify-between px-2';
+            div.id = `ladder-${i}`;
+            
+            // Check if it's a safe level milestone
+            let isSafe = safeLevels.includes(i);
+            
+            div.innerHTML = `
+                <span class="w-8 ${isSafe ? 'text-yellow-400 font-bold' : ''}">${i + 1}</span>
+                <span class="flex-1 text-right ${isSafe ? 'ladder-milestone' : ''}">${prizeLadder[i]}</span>
+            `;
+            container.appendChild(div);
+        }
+    }
+
+    function updateLadderUI() {
+        for (let i = 0; i < prizeLadder.length; i++) {
+            let el = document.getElementById(`ladder-${i}`);
+            el.className = 'ladder-item py-1 flex items-center justify-between px-2'; // reset
+            if (i < gameState.currentIndex) {
+                el.classList.add('passed');
+            } else if (i === gameState.currentIndex) {
+                el.classList.add('active');
+                // Scroll into view logic if necessary (though it fits on 1080p)
+            }
+        }
+    }
+
+    function loadQuestion() {
+        const q = questions[gameState.currentIndex];
+        
+        // Reset UI state
+        gameState.selectedAnswer = null;
+        gameState.isLocked = false;
+        
+        document.getElementById('game-question-number').innerText = `PERTANYAAN ${q.number} DARI 30`;
+        document.getElementById('game-score-display').innerText = `Skor Saat Ini: ${gameState.scoreIndex >= 0 ? prizeLadder[gameState.scoreIndex] : '0'}`;
+        document.getElementById('question-text').innerText = q.question;
+        
+        ['A', 'B', 'C', 'D'].forEach(opt => {
+            const btn = document.getElementById(`ans-${opt}`);
+            btn.className = 'answer-btn rounded-2xl p-6 text-left flex items-center group';
+            btn.disabled = false;
+            document.getElementById(`text-${opt}`).innerText = q.options[opt];
+        });
+
+        const lockBtn = document.getElementById('btn-lock');
+        lockBtn.className = 'btn-3d bg-slate-600 text-slate-400 border-4 border-slate-500 rounded-2xl py-6 px-12 text-4xl font-bold flex items-center gap-4 transition-colors cursor-not-allowed';
+        
+        updateLadderUI();
+        startTimer();
+    }
+
+    function selectAnswer(opt) {
+        if (gameState.isLocked) return;
+        sounds.click();
+        
+        gameState.selectedAnswer = opt;
+        
+        ['A', 'B', 'C', 'D'].forEach(o => {
+            const btn = document.getElementById(`ans-${o}`);
+            if(!btn.classList.contains('disabled')) { // preserve 50:50 disabled state
+                btn.className = 'answer-btn rounded-2xl p-6 text-left flex items-center group';
+                if (o === opt) {
+                    btn.classList.add('selected');
+                }
+            }
+        });
+
+        const lockBtn = document.getElementById('btn-lock');
+        lockBtn.className = 'btn-3d bg-yellow-500 hover:bg-yellow-400 text-black border-4 border-yellow-300 rounded-2xl py-6 px-12 text-4xl font-bold flex items-center gap-4 transition-colors shadow-lg';
+    }
+
+    function lockAnswer() {
+        if (gameState.isLocked || !gameState.selectedAnswer) return;
+        
+        sounds.lock();
+        gameState.isLocked = true;
+        stopTimer();
+        
+        const lockBtn = document.getElementById('btn-lock');
+        lockBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> MEMERIKSA...';
+        lockBtn.className = 'btn-3d bg-blue-600 text-white border-4 border-blue-400 rounded-2xl py-6 px-12 text-4xl font-bold flex items-center gap-4';
+
+        // Disable all answers
+        ['A', 'B', 'C', 'D'].forEach(o => { document.getElementById(`ans-${o}`).disabled = true; });
+
+        // Simulate suspense
+        setTimeout(() => {
+            checkAnswer();
+        }, 1500);
+    }
+
+    function checkAnswer() {
+        const q = questions[gameState.currentIndex];
+        const isCorrect = gameState.selectedAnswer === q.answer;
+        
+        const selectedBtn = document.getElementById(`ans-${gameState.selectedAnswer}`);
+        const correctBtn = document.getElementById(`ans-${q.answer}`);
+
+        lockBtnOriginalText();
+
+        if (isCorrect) {
+            sounds.correct();
+            selectedBtn.classList.replace('selected', 'correct');
+            gameState.correctCount++;
+            gameState.scoreIndex = gameState.currentIndex;
+            setTimeout(() => showFeedback(true, q), 1500);
+        } else {
+            sounds.wrong();
+            if(gameState.selectedAnswer) selectedBtn.classList.replace('selected', 'wrong');
+            correctBtn.classList.add('correct'); // Reveal correct
+            gameState.wrongCount++;
+            setTimeout(() => showFeedback(false, q), 2000);
+        }
+    }
+
+    function lockBtnOriginalText() {
+        const lockBtn = document.getElementById('btn-lock');
+        lockBtn.innerHTML = '<i class="fas fa-lock"></i> KUNCI JAWABAN';
+    }
+
+    function showFeedback(isCorrect, q) {
+        const overlay = document.getElementById('modal-overlay');
+        const modal = document.getElementById('modal-feedback');
+        
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        modal.classList.remove('hidden');
+
+        const title = document.getElementById('feedback-title');
+        const icon = document.getElementById('feedback-icon');
+        const player = document.getElementById('feedback-player');
+        const expBox = document.getElementById('feedback-explanation-box');
+        
+        if (isCorrect) {
+            title.innerText = "BENAR!";
+            title.className = "title-font text-6xl font-bold mb-4 text-green-400";
+            icon.innerHTML = '<i class="fas fa-check-circle text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]"></i>';
+            player.innerText = `Luar biasa, ${gameState.playerName}!`;
+            expBox.classList.add('hidden');
+            fireConfetti();
+        } else {
+            title.innerText = "BELUM TEPAT!";
+            title.className = "title-font text-6xl font-bold mb-4 text-red-500";
+            icon.innerHTML = '<i class="fas fa-times-circle text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]"></i>';
+            player.innerText = `Jawaban yang benar adalah ${q.answer}.`;
+            expBox.classList.remove('hidden');
+            document.getElementById('feedback-explanation').innerText = q.explanation;
+        }
+    }
+
+    function fireConfetti() {
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#fcd34d', '#34d399', '#60a5fa']
+        });
+    }
+
+    function startTimer() {
+        gameState.timer = 60;
+        const timerText = document.getElementById('timer-text');
+        const timerBox = document.getElementById('timer-box');
+        timerText.innerText = gameState.timer;
+        timerBox.className = 'bg-slate-800 border-4 border-blue-500 rounded-full px-10 py-4 flex items-center gap-4 shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-colors';
+        timerText.classList.remove('pulse-urgent');
+
+        gameState.timerInterval = setInterval(() => {
+            gameState.timer--;
+            timerText.innerText = gameState.timer;
+            
+            if (gameState.timer <= 15 && gameState.timer > 0) {
+                sounds.tick();
+                if(gameState.timer === 15) {
+                    timerBox.classList.replace('border-blue-500', 'border-yellow-500');
+                    timerBox.style.boxShadow = '0 0 20px rgba(234, 179, 8, 0.5)';
+                }
+            } else if (gameState.timer <= 5 && gameState.timer > 0) {
+                sounds.urgentTick();
+                timerText.classList.add('pulse-urgent');
+                timerBox.classList.replace('border-yellow-500', 'border-red-500');
+                timerBox.style.boxShadow = '0 0 30px rgba(239, 68, 68, 0.8)';
+            }
+            
+            if (gameState.timer <= 0) {
+                stopTimer();
+                gameState.isLocked = true;
+                timerText.innerText = "0";
+                checkAnswer(); // Will process as wrong since selectedAnswer is null or incorrect
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if(gameState.timerInterval) clearInterval(gameState.timerInterval);
+    }
+
+    // --- Lifelines ---
+    function useFiftyFifty() {
+        if(!gameState.lifelines.fiftyFifty || gameState.isLocked) return;
+        sounds.levelUp();
+        gameState.lifelines.fiftyFifty = false;
+        
+        let btn = document.getElementById('btn-5050');
+        btn.classList.add('opacity-30', 'cursor-not-allowed', 'bg-gray-700');
+        btn.innerHTML = '<span class="text-3xl mb-1 line-through">50:50</span><span class="text-sm font-normal">Sudah Dipakai</span>';
+        
+        const q = questions[gameState.currentIndex];
+        let wrongOptions = ['A', 'B', 'C', 'D'].filter(o => o !== q.answer);
+        
+        // Shuffle and take 2 to remove
+        wrongOptions.sort(() => 0.5 - Math.random());
+        let toRemove = [wrongOptions[0], wrongOptions[1]];
+        
+        toRemove.forEach(opt => {
+            let el = document.getElementById(`ans-${opt}`);
+            el.classList.add('disabled');
+            document.getElementById(`text-${opt}`).innerText = "";
+        });
+    }
+
+    function useAskFriend() {
+        if(!gameState.lifelines.askFriend || gameState.isLocked) return;
+        sounds.levelUp();
+        gameState.lifelines.askFriend = false;
+        
+        let btn = document.getElementById('btn-friend');
+        btn.classList.add('opacity-30', 'cursor-not-allowed', 'bg-gray-700');
+        btn.innerHTML = '<i class="fas fa-users text-3xl mb-2 text-gray-400"></i><span class="text-sm font-normal">Sudah Dipakai</span>';
+        
+        const q = questions[gameState.currentIndex];
+        // 80% chance friend is right
+        let suggested = q.answer;
+        if(Math.random() > 0.8) {
+            let wrongOptions = ['A', 'B', 'C', 'D'].filter(o => o !== q.answer);
+            suggested = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+        }
+        
+        showInfoModal("TANYA TEMAN", `Teman sekelasmu yang pintar berbisik:<br><br><strong>"Menurutku sih jawabannya adalah ${suggested}, tapi kamu pikirkan lagi ya!"</strong>`);
+    }
+
+    function useHint() {
+        if(!gameState.lifelines.hint || gameState.isLocked) return;
+        sounds.levelUp();
+        gameState.lifelines.hint = false;
+        
+        let btn = document.getElementById('btn-hint');
+        btn.classList.add('opacity-30', 'cursor-not-allowed', 'bg-gray-700');
+        btn.innerHTML = '<i class="fas fa-lightbulb text-3xl mb-2 text-gray-400"></i><span class="text-sm font-normal">Sudah Dipakai</span>';
+        
+        const q = questions[gameState.currentIndex];
+        showInfoModal("PETUNJUK GURU", `<strong>Petunjuk:</strong><br>${q.explanation}`);
+    }
+
+    function showInfoModal(title, htmlContent) {
+        const overlay = document.getElementById('modal-overlay');
+        const info = document.getElementById('modal-info');
+        
+        document.getElementById('info-title').innerText = title;
+        document.getElementById('info-content').innerHTML = htmlContent;
+        
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        info.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        sounds.click();
+        document.getElementById('modal-overlay').classList.add('hidden');
+        document.getElementById('modal-info').classList.add('hidden');
+    }
+
+    function nextQuestion() {
+        sounds.click();
+        document.getElementById('modal-overlay').classList.add('hidden');
+        document.getElementById('modal-feedback').classList.add('hidden');
+        
+        // Check for game over or win condition
+        const q = questions[gameState.currentIndex];
+        const wasCorrect = gameState.selectedAnswer === q.answer;
+
+        if (!wasCorrect) {
+            endGame();
+            return;
+        }
+
+        // Check Milestone
+        if (safeLevels.includes(gameState.currentIndex)) {
+            showMilestone();
+            return; // Will continue from milestone button
+        }
+
+        advanceToNext();
+    }
+
+    function showMilestone() {
+        sounds.levelUp();
+        const overlay = document.getElementById('modal-overlay');
+        const modal = document.getElementById('modal-milestone');
+        
+        document.getElementById('milestone-text').innerText = `Hebat! Kamu sudah mengamankan skor ${prizeLadder[gameState.currentIndex]}!`;
+        
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        modal.classList.remove('hidden');
+        
+        confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } });
+    }
+
+    function closeMilestone() {
+        sounds.click();
+        document.getElementById('modal-overlay').classList.add('hidden');
+        document.getElementById('modal-milestone').classList.add('hidden');
+        advanceToNext();
+    }
+
+    function advanceToNext() {
+        gameState.currentIndex++;
+        if (gameState.currentIndex >= questions.length) {
+            endGame(true);
+        } else {
+            loadQuestion();
+        }
+    }
+
+    function endGame(isWin = false) {
+        if(isWin) {
+            sounds.levelUp();
+            let duration = 3 * 1000;
+            let end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#fbbf24', '#f59e0b'] });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b'] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        let finalScoreValue = 0;
+        let finalScoreStr = "0";
+        if (gameState.scoreIndex >= 0) {
+            finalScoreStr = prizeLadder[gameState.scoreIndex];
+            finalScoreValue = parseInt(finalScoreStr.replace(/\./g, ''));
+        }
+        
+        // Find safe level score if lost
+        if (!isWin && gameState.scoreIndex >= 0) {
+            let securedIndex = -1;
+            for(let i=safeLevels.length-1; i>=0; i--) {
+                if(gameState.scoreIndex >= safeLevels[i]) {
+                    securedIndex = safeLevels[i];
+                    break;
+                }
+            }
+            if(securedIndex >= 0) {
+                finalScoreStr = prizeLadder[securedIndex];
+                finalScoreValue = parseInt(finalScoreStr.replace(/\./g, ''));
+            } else {
+                finalScoreStr = "0";
+                finalScoreValue = 0;
+            }
+        }
+
+        const totalQuestions = gameState.correctCount + gameState.wrongCount;
+        const accuracy = totalQuestions > 0 ? Math.round((gameState.correctCount / 30) * 100) : 0;
+        
+        // Determine Title
+        let titleText = "JAWARA PEJUANG";
+        let titleIcon = '<i class="fas fa-medal text-gray-400"></i>';
+        
+        if (accuracy >= 90) {
+            titleText = "JAWARA UTAMA";
+            titleIcon = '<i class="fas fa-trophy text-yellow-400"></i>';
+        } else if (accuracy >= 75) {
+            titleText = "JAWARA HEBAT";
+            titleIcon = '<i class="fas fa-award text-blue-400"></i>';
+        } else if (accuracy >= 60) {
+            titleText = "JAWARA TANGGUH";
+            titleIcon = '<i class="fas fa-star text-green-400"></i>';
+        }
+
+        document.getElementById('result-message').innerText = isWin ? "LUAR BIASA! KAMU MENANG!" : "PERMAINAN BERAKHIR!";
+        document.getElementById('result-title-icon').innerHTML = titleIcon;
+        document.getElementById('result-title-text').innerText = titleText;
+        document.getElementById('result-name').innerText = gameState.playerName;
+        document.getElementById('result-correct').innerText = gameState.correctCount;
+        document.getElementById('result-wrong').innerText = gameState.wrongCount;
+        document.getElementById('result-accuracy').innerText = accuracy + "%";
+        document.getElementById('result-score').innerText = finalScoreStr;
+
+        saveHighScore(gameState.playerName, finalScoreValue, gameState.correctCount);
+        
+        navTo('screen-result');
+    }
+
+    // --- High Scores (Local Storage) ---
+    function saveHighScore(name, score, correct) {
+        if (!name || score === 0 && correct === 0) return; // Don't save empty runs
+        let scores = JSON.parse(localStorage.getItem('jawara5_highscores') || '[]');
+        scores.push({ name, score, correct, date: new Date().toLocaleDateString('id-ID') });
+        scores.sort((a, b) => b.score - a.score || b.correct - a.correct);
+        scores = scores.slice(0, 10); // Keep top 10
+        localStorage.setItem('jawara5_highscores', JSON.stringify(scores));
+    }
+
+    function showHighScores() {
+        sounds.click();
+        let scores = JSON.parse(localStorage.getItem('jawara5_highscores') || '[]');
+        const list = document.getElementById('highscore-list');
+        const noMsg = document.getElementById('no-scores-msg');
+        
+        list.innerHTML = '';
+        if (scores.length === 0) {
+            noMsg.classList.remove('hidden');
+        } else {
+            noMsg.classList.add('hidden');
+            scores.forEach((s, idx) => {
+                let rankClass = idx === 0 ? 'text-yellow-400 font-bold' : (idx === 1 ? 'text-gray-300 font-bold' : (idx === 2 ? 'text-amber-600 font-bold' : 'text-gray-400'));
+                let icon = idx === 0 ? '<i class="fas fa-crown"></i> ' : (idx < 3 ? '<i class="fas fa-medal"></i> ' : `${idx+1}. `);
+                
+                let tr = document.createElement('tr');
+                tr.className = `border-b border-slate-700/50 ${idx % 2 === 0 ? 'bg-slate-800/30' : ''}`;
+                tr.innerHTML = `
+                    <td class="${rankClass} py-3 pl-4">${icon}</td>
+                    <td class="py-3 font-semibold">${s.name}</td>
+                    <td class="py-3 text-yellow-300 font-bold">${s.score.toLocaleString('id-ID')}</td>
+                    <td class="py-3 text-right pr-4 text-green-400">${s.correct} <i class="fas fa-check text-sm"></i></td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+        navTo('screen-highscores');
+    }
+
+</script>
+</body>
+</html>
